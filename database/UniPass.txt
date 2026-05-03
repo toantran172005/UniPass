@@ -1,0 +1,358 @@
+---------------------- DATABASE ------------------------------------------
+
+Users
+- id (BIGSERIAL, PK)
+- username (VARCHAR, unique)
+- password (VARCHAR)
+- email (VARCHAR, unique)
+- edu_email (VARCHAR, unique)    -- tích hợp OTP
+- phone (VARCHAR, unique)
+- full_name (VARCHAR)
+- avatar_url (VARCHAR)
+- zalo_phone (VARCHAR, nullable)
+- facebook_url (VARCHAR, nullable)
+- university_name (VARCHAR, nullable)
+- status (ENUM: 'active', 'inactive', 'banned')
+- is_seller (BOOLEAN)                -- dùng để xem có bao nhiêu người bán thực sự
+- created_at (TIMESTAMPTZ)
+- updated_at (TIMESTAMPTZ)
+- is_student_verified (BOOLEAN)
+- student_verified_at (TIMESTAMPTZ)
+
+Roles
+- id (BIGSERIAL, PK)
+- role_name (VARCHAR(50), unique)     -- 'USER', 'ADMIN'
+
+User_Role
+- user_id (FK → Users)
+- role_id (FK → Roles)
+
+OTP_Verifications
+- id (BIGSERIAL, PK)
+- user_id (FK → Users)
+- email (VARCHAR(255))      -- Cần tăng lên 255 vì email trường học thường rất dài
+- otp_code (CHAR(6))        -- Dùng CHAR(6) sẽ tối ưu hơn VARCHAR vì mã luôn cố định 6 số
+- expired_at (TIMESTAMPTZ)
+- created_at (TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP)
+- attempts (INT DEFAULT 0)   -- Mặc định là 0, sẽ tăng dần đến 3
+
+User_Wallet
+- id (BIGSERIAL, PK)
+- user_id (FK → Users, unique)
+- balance (NUMERIC(15,2) DEFAULT 0.00)
+- currency (VARCHAR(3) DEFAULT 'VND')
+- last_updated (TIMESTAMPTZ)
+
+Wallet_Transactions
+- id (BIGSERIAL, PK)
+- wallet_id (FK → User_Wallet) hoặc user_id (cả 2 đều được, mình recommend dùng wallet_id)
+- transaction_code (VARCHAR, unique)   -- ví dụ: WT20260503123456
+- type (ENUM): 
+    'TOPUP', 'WITHDRAW', 'ORDER_PAYMENT', 'ORDER_RECEIVE', 
+    'REFUND', 'COMMISSION', 'PROMOTION'
+- amount (NUMERIC(15,2))
+- balance_before (NUMERIC(15,2))
+- balance_after (NUMERIC(15,2))
+- order_id (FK → Orders, nullable)
+- description (TEXT, nullable)
+- status (ENUM): 'PENDING', 'SUCCESS', 'FAILED', 'CANCELLED'
+- created_at (TIMESTAMPTZ)
+- updated_at (TIMESTAMPTZ)
+
+Reports
+- id (BIGSERIAL, PK)
+- reporter_id (FK → Users)
+- reported_user_id (FK → Users, nullable)
+- reported_product_id (FK → Products, nullable)
+- reported_order_id (FK → Orders, nullable)
+- report_type (VARCHAR(50))
+- reason (VARCHAR(100)) 
+    -- ví dụ: 'SPAM', 'FRAUD', 'FAKE_PRODUCT', 'BAD_BEHAVIOR', 'OTHER'
+- description (TEXT)
+- evidence_images (JSON hoặc TEXT, nullable)  -- lưu mảng URL ảnh
+- status (ENUM): 'PENDING', 'REVIEWING', 'RESOLVED', 'REJECTED'
+- admin_note (TEXT, nullable)
+- created_at (TIMESTAMPTZ)
+- updated_at (TIMESTAMPTZ)
+
+Address
+- id (BIGSERIAL, PK)
+- user_id (FK → Users)
+- receiver_name (VARCHAR)
+- phone (VARCHAR)
+- address_line (TEXT)
+- Campus (TEXT)          -- cơ sở/cổng trường
+- latitude (NUMERIC(10,8), nullable)
+- longitude (NUMERIC(11,8), nullable)
+- ward (VARCHAR)
+- district (VARCHAR)
+- city (VARCHAR)
+- is_default (BOOLEAN DEFAULT FALSE)
+- created_at (TIMESTAMPTZ)
+
+User_Tokens
+- id (BIGSERIAL, PK)
+- user_id (FK → Users)
+- refresh_token (TEXT)
+- expired_date (TIMESTAMPTZ)
+- revoked (BOOLEAN DEFAULT FALSE)
+- created_at (TIMESTAMPTZ)
+
+Categories
+- id (BIGSERIAL, PK)
+- parent_id (FK → Categories, nullable)   -- hỗ trợ danh mục con
+- name (VARCHAR)
+- icon_url (VARCHAR, nullable)
+- sort_order (INT DEFAULT 0)
+- created_at (TIMESTAMPTZ)
+
+Category_Product
+- category_id (FK → Categories)
+- product_id (FK → Products)
+
+Products
+- id (BIGSERIAL, PK)
+- seller_id (FK → Users)
+- name (VARCHAR)
+- description (TEXT)
+- price (NUMERIC(12,2))
+- stock_quantity (INT DEFAULT 0)
+- condition (ENUM: 'new', 'like_new', 'used', 'heavily_used')
+- weight (INT, nullable)           -- gram
+- length (NUMERIC(6,2), nullable)  -- cm
+- width (NUMERIC(6,2), nullable)   -- cm
+- height (NUMERIC(6,2), nullable)  -- cm
+- status (ENUM: 'active', 'inactive', 'sold', 'deleted')
+- view_count (INT DEFAULT 0)
+- created_at (TIMESTAMPTZ)
+- updated_at (TIMESTAMPTZ)
+
+Product_Images
+- id (BIGSERIAL, PK)
+- product_id (FK → Products)
+- image_url (VARCHAR)
+- is_primary (BOOLEAN DEFAULT FALSE)
+- sort_order (INT DEFAULT 0)
+- created_at (TIMESTAMPTZ)
+
+Offers
+- id (BIGSERIAL, PK)
+- product_id (FK → Products)
+- buyer_id (FK → Users)
+- offered_price (NUMERIC(12,2))
+- content (TEXT, nullable)
+- status (ENUM: 'pending', 'accepted', 'rejected', 'cancelled')
+- created_at (TIMESTAMPTZ)
+
+Orders
+- id (BIGSERIAL, PK)
+- order_code (VARCHAR(30), unique)        -- ví dụ: ORD-20260503-78421
+- buyer_id (FK → Users)
+- seller_id (FK → Users)
+- shipping_address_id (FK → Address)
+- voucher_id (FK → Vouchers, nullable)
+- shop_total (NUMERIC(12,2))              -- tổng tiền hàng
+- shipping_fee (NUMERIC(10,2))
+- grand_total (NUMERIC(12,2))
+- status (ENUM: 'pending', 'confirmed', 'shipping', 'delivered', 'cancelled', 'refunded')
+- cancel_reason (TEXT, nullable)
+- canceled_at (TIMESTAMPTZ, nullable)
+- created_at (TIMESTAMPTZ)
+- updated_at (TIMESTAMPTZ)
+
+Order_Details
+- id (BIGSERIAL, PK)
+- order_id (FK → Orders)
+- product_id (FK → Products)
+- quantity (INT)
+- unit_price (NUMERIC(12,2))
+- subtotal (NUMERIC(12,2))
+
+Deliveries
+- id (BIGSERIAL, PK)
+- order_id (FK → Orders)
+- tracking_code (VARCHAR, nullable)
+- carrier_name (VARCHAR)                  -- GHTK, Viettel Post, GHN, "Tự thỏa thuận"
+- status (ENUM: 'pending', 'picked_up', 'in_transit', 'delivered', 'failed')
+- estimated_delivery_date (DATE, nullable)
+- distance_km (NUMERIC(6,2), nullable)
+- shipping_provider_fee (NUMERIC(10,2))
+- cod_fee (NUMERIC(8,2), nullable)
+- created_at (TIMESTAMPTZ)
+- updated_at (TIMESTAMPTZ)
+
+Rating
+- id (BIGSERIAL, PK)
+- order_id (FK → Orders)
+- reviewer_id (FK → Users)        -- người đánh giá
+- seller_id (FK → Users)          -- người bán bị đánh giá
+- rating (INT)                    -- 1 đến 5 sao
+- comment (TEXT, nullable)
+- created_at (TIMESTAMPTZ)
+
+Payments
+- id (BIGSERIAL, PK)
+- order_id (FK → Orders)
+- payment_method (ENUM: 'COD', 'TRANSFER', 'E_WALLET', 'WALLET')
+- status (ENUM: 'PENDING', 'SUCCESS', 'FAILED', 'REFUNDED')
+- transaction_id (VARCHAR, nullable)     -- mã giao dịch từ cổng thanh toán hoặc ví
+- amount (NUMERIC(12,2))
+- created_at (TIMESTAMPTZ)
+
+Conversations
+- id (BIGSERIAL, PK)
+- buyer_id (FK → Users)
+- seller_id (FK → Users)
+- product_id (FK → Products, nullable)   -- chat về sản phẩm cụ thể
+- updated_at (TIMESTAMPTZ)               -- thời gian tin nhắn mới nhất
+
+Messages
+- id (BIGSERIAL, PK)
+- conversation_id (FK → Conversations)
+- sender_id (FK → Users)
+- content (TEXT)
+- image_url (VARCHAR, nullable)          -- hỗ trợ gửi ảnh
+- is_read (BOOLEAN DEFAULT FALSE)
+- created_at (TIMESTAMPTZ)
+
+Vouchers
+- id (BIGSERIAL, PK)
+- code (VARCHAR(20), unique)
+- type (ENUM: 'DISCOUNT', 'FREE_SHIP', 'PERCENT')
+- discount_amount (NUMERIC(12,2), nullable)   -- số tiền giảm
+- discount_percent (NUMERIC(5,2), nullable)   -- % giảm
+- min_order_value (NUMERIC(12,2), nullable)
+- max_discount (NUMERIC(12,2), nullable)      -- giới hạn tối đa (dùng cho %)
+- quantity (INT)                              -- tổng số lượng voucher
+- used_count (INT DEFAULT 0)
+- expires_at (TIMESTAMPTZ)
+- user_usage_limit (INT DEFAULT 1)            -- 1 user dùng tối đa bao nhiêu lần
+- created_at (TIMESTAMPTZ)
+
+Notifications
+- id (BIGSERIAL, PK)
+- user_id (FK → Users)
+- title (VARCHAR(255))
+- content (TEXT)
+- type (ENUM): 
+    'ORDER_STATUS', 'NEW_OFFER', 'OFFER_ACCEPTED', 'OFFER_REJECTED',
+    'NEW_MESSAGE', 'PRODUCT_SOLD', 'SYSTEM', 'RATING', 'REFUND'
+- reference_id (BIGINT, nullable)     -- dùng BIGINT chuẩn với BIGSERIAL của PK
+- reference_type (VARCHAR(50), nullable)  -- 'Order', 'Message', 'Product'...
+- is_read (BOOLEAN DEFAULT FALSE)
+- created_at (TIMESTAMPTZ)
+
+------------------------ INDEX ---------------------------------------------
+
+-- ==========================================
+-- 1. INDEX CHO FOREIGN KEYS (Bắt buộc để JOIN nhanh)
+-- ==========================================
+CREATE INDEX idx_products_seller_id ON Products(seller_id);
+CREATE INDEX idx_category_product_cat_id ON Category_Product(category_id);
+CREATE INDEX idx_category_product_prod_id ON Category_Product(product_id);
+
+CREATE INDEX idx_orders_buyer_id ON Orders(buyer_id);
+CREATE INDEX idx_orders_seller_id ON Orders(seller_id);
+CREATE INDEX idx_order_details_order_id ON Order_Details(order_id);
+CREATE INDEX idx_order_details_product_id ON Order_Details(product_id);
+
+CREATE INDEX idx_deliveries_order_id ON Deliveries(order_id);
+CREATE INDEX idx_payments_order_id ON Payments(order_id);
+CREATE INDEX idx_rating_order_id ON Rating(order_id);
+CREATE INDEX idx_rating_seller_id ON Rating(seller_id);
+
+CREATE INDEX idx_conversations_buyer_id ON Conversations(buyer_id);
+CREATE INDEX idx_conversations_seller_id ON Conversations(seller_id);
+CREATE INDEX idx_messages_conversation_id ON Messages(conversation_id);
+
+CREATE INDEX idx_offers_buyer_id ON Offers(buyer_id);
+CREATE INDEX idx_offers_product_id ON Offers(product_id);
+
+CREATE INDEX idx_notifications_user_id ON Notifications(user_id);
+CREATE INDEX idx_address_user_id ON Address(user_id);
+CREATE INDEX idx_wallet_transactions_wallet_id ON Wallet_Transactions(wallet_id);
+
+CREATE INDEX idx_user_role_user_id ON User_Role(user_id);
+CREATE INDEX idx_user_tokens_user_id ON User_Tokens(user_id);
+CREATE INDEX idx_otp_verifications_user_id ON OTP_Verifications(user_id);
+
+
+-- ==========================================
+-- 2. COMPOSITE INDEX (Lọc & Sắp xếp đồng thời)
+-- ==========================================
+-- Lấy danh sách sản phẩm đang bán, ưu tiên hiển thị mới nhất
+CREATE INDEX idx_products_status_created ON Products(status, created_at DESC);
+
+-- Quản lý đơn hàng cho Buyer và Seller theo trạng thái
+CREATE INDEX idx_orders_buyer_status ON Orders(buyer_id, status);
+CREATE INDEX idx_orders_seller_status ON Orders(seller_id, status);
+
+-- Lấy thông báo chưa đọc của 1 User, ưu tiên mới nhất
+CREATE INDEX idx_notifications_user_unread ON Notifications(user_id, is_read) WHERE is_read = FALSE;
+
+-- Tìm mã OTP mới nhất của 1 User
+CREATE INDEX idx_otp_user_created ON OTP_Verifications(user_id, created_at DESC);
+
+-- Lấy tin nhắn trong 1 cuộc hội thoại, sắp xếp theo thời gian
+CREATE INDEX idx_messages_conv_created ON Messages(conversation_id, created_at DESC);
+
+-- ==========================================
+-- 3. INDEX CHO TÌM KIẾM THƯỜNG XUYÊN
+-- ==========================================
+-- Tìm token refresh chưa bị thu hồi và còn hạn
+CREATE INDEX idx_tokens_refresh ON User_Tokens(refresh_token) WHERE revoked = FALSE;
+
+-- Tìm voucher theo mã và kiểm tra hạn sử dụng
+CREATE INDEX idx_vouchers_code_expires ON Vouchers(code, expires_at);
+
+------------------- TODO LIST -------------------------------- ✅
+
+PHASE 1: NỀN TẢNG DỮ LIỆU (DATABASE & BASE PROJECT)
+- [ ] Khởi tạo Project Spring Boot (Web, JPA, Postgres Driver, Validation, Lombok).
+- [ ] Code toàn bộ Entity Classes (Users, Products, Orders, v.v.) với đầy đủ @Entity, @Table, @Index.
+- [ ] Cấu hình application.yml kết nối PostgreSQL (spring.jpa.hibernate.ddl-auto=update).
+- [ ] Tạo các interface JpaRepository cho tất cả các bảng.
+- [ ] Chạy App lần đầu để Hibernate tự động sinh cấu trúc DB trong PostgreSQL.
+- [ ] Kiểm tra lại quan hệ (Relationship) và kiểu dữ liệu (Numeric cho tiền, Timestamptz cho thời gian).
+
+PHASE 2: BẢO MẬT & XÁC THỰC (SECURITY & AUTH)
+- [ ] Cấu hình Spring Security và JWT (Access Token & Refresh Token).
+- [ ] Viết API Đăng ký / Đăng nhập (Tự động tạo bản ghi Wallet khi User đăng ký thành công).
+- [ ] Tích hợp JavaMailSender để gửi Mail từ hệ thống.
+- [ ] Hiện thực logic OTP Email .edu.vn (Tạo mã, lưu bảng OTP_Verifications, xác thực khớp mã).
+- [ ] Viết Custom Filter để kiểm tra quyền hạn (is_student_verified) trước khi áp dụng Voucher sinh viên.
+
+PHASE 3: NGHIỆP VỤ CỐT LÕI (CORE C2C FEATURES)
+- [ ] Quản lý Sản phẩm (Products):
+    - [ ] API Đăng sản phẩm (Tích hợp Cloudinary hoặc S3 để lưu và lấy URL ảnh).
+    - [ ] API Instagram-style Feed (Dùng Native Query để JOIN bảng User lấy Campus và University).
+    - [ ] API Tìm kiếm sản phẩm theo tên, danh mục và trạng thái.
+- [ ] Giao dịch & Đơn hàng (Orders & Wallet):
+    - [ ] API Đặt hàng (Kiểm tra stock_quantity, tạo bản ghi Orders và Order_Details).
+    - [ ] API Thanh toán nội bộ (Dùng @Transactional để trừ tiền ví Buyer, lưu lịch sử giao dịch).
+    - [ ] Logic cập nhật trạng thái đơn hàng (Pending -> Confirmed -> Shipping -> Delivered).
+    - [ ] Tự động cộng tiền vào ví Seller sau khi đơn hàng thành công (ORDER_RECEIVE).
+
+PHASE 4: TƯƠNG TÁC & TIỆN ÍCH (INTERACTION)
+- [ ] Chat (Conversations & Messages):
+    - [ ] Cấu hình WebSocket (STOMP) để nhắn tin thời gian thực giữa Buyer và Seller.
+    - [ ] API lấy lại lịch sử tin nhắn của một cuộc hội thoại.
+- [ ] Hệ thống đánh giá (Rating):
+    - [ ] API gửi đánh giá (Rating/Comment) sau khi đơn hàng chuyển sang trạng thái SUCCESS.
+- [ ] Thông báo (Notifications):
+    - [ ] Logic tạo thông báo hệ thống khi có Đơn hàng mới, Tin nhắn mới, hoặc Report được xử lý.
+
+PHASE 5: QUẢN TRỊ & TỐI ƯU (ADMIN & OPTIMIZATION)
+- [ ] Admin Dashboard API: Thống kê doanh thu, số User mới, duyệt các tin đăng bị Report.
+- [ ] Review và tinh chỉnh toàn bộ Index (đã thảo luận) để đảm bảo query không bị chậm khi data lớn.
+- [ ] Cấu hình Flyway để quản lý Migration (chuyển ddl-auto về none sau khi DB đã ổn định).
+- [ ] Viết Dockerfile và docker-compose.yml để đóng gói toàn bộ App và Postgres.
+
+PHASE 6: TRIỂN KHAI (DEPLOYMENT)
+- [ ] Deploy Backend lên Server (Render, AWS, hoặc Railway).
+- [ ] Thiết lập CI/CD (GitHub Actions) để tự động hóa quy trình Deploy khi push code.
+- [ ] Trỏ tên miền (Domain) và cấu hình SSL (HTTPS) cho API.
+
+-------------------- UI/UX REFERENCES -------------------------
+
+https://lovable.dev/projects/3a723c97-e854-48d1-b0d5-63168c0ed12d
