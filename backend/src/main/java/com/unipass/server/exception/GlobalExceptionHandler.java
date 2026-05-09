@@ -12,7 +12,7 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    // Error causes by @Valid
+    // Lỗi bởi @Valid khi request đưa data xuống server
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, String>> handleValidationExceptions(MethodArgumentNotValidException ex) {
         Map<String, String> errors = new HashMap<>();
@@ -26,15 +26,15 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(errors, HttpStatus.BAD_REQUEST);
     }
 
-    // Error causes by Admin's defination
+    // Lỗi được Admin định nghĩa
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<String> handleRuntimeExceptions(RuntimeException ex) {
         return new ResponseEntity<>(ex.getMessage(), HttpStatus.BAD_REQUEST);
     }
 
-    // Error causes by System
+    // Lỗi bởi system
     @ExceptionHandler(Exception.class)
     public ResponseEntity<String> handleGlobalExceptions(Exception ex) {
-        return new ResponseEntity<>("Hệ thống đang bận, vui lòng thử lại sau!", HttpStatus.INTERNAL_SERVER_ERROR);
+        return new ResponseEntity<>("Hệ thống đang bận, vui lòng thử lại sau!\n" + ex.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
     }
 }
