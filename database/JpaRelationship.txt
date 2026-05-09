@@ -1,0 +1,99 @@
+=========================================
+UNIPASS DATABASE - CÁC MỐI QUAN HỆ JPA
+=========================================
+
+1. QUAN HỆ ONE-TO-ONE (1:1)
+- Users <-> Wallet (dựa vào user_id unique trong User_Wallet) ✅
+- Orders <-> Deliveries (1 Đơn hàng - 1 Giao hàng) ✅
+
+2. QUAN HỆ MANY-TO-MANY (N:M)
+- Users <-> Roles (Bảng trung gian: User_Role) ✅
+
+3. QUAN HỆ ONE-TO-MANY (1:N) / MANY-TO-ONE (N:1)
+
+[ TÂM ĐIỂM: USERS ]
+- Users (1) -> (N) OTP_Verifications ✅
+- Users (1) -> (N) Address ✅
+- Users (1) -> (N) User_Tokens ✅
+- Users (1) -> (N) Notifications ✅
+- Users (1) -> (N) Products (seller_id) ✅
+- Users (1) -> (N) Offers (buyer_id) ✅
+- Users (1) -> (N) Orders (buyer_id) ✅
+- Users (1) -> (N) Orders (seller_id) ✅
+- Users (1) -> (N) Reports (reporter_id) ✅
+- Users (1) -> (N) Reports (reported_user_id) ✅
+- Users (1) -> (N) Rating (reviewer_id) ✅
+- Users (1) -> (N) Rating (seller_id) ✅
+- Users (1) -> (N) Conversations (buyer_id)  ✅
+- Users (1) -> (N) Conversations (seller_id)  ✅
+- Users (1) -> (N) Messages (sender_id) ✅ 
+
+[ TÂM ĐIỂM: PRODUCTS ]
+- Products (1) -> (N) Product_Images ✅
+- Products (1) -> (N) Offers ✅
+- Products (1) -> (N) Order_Details ✅
+- Products (1) -> (N) Reports (reported_product_id) ✅
+- Products (1) -> (N) Conversations (product_id)  ✅
+- Products (N) -> (1) Categories (category_id) ✅
+
+[ TÂM ĐIỂM: ORDERS ]
+- Orders (1) -> (N) Order_Details ✅
+- Orders (1) -> (N) Wallet_Transactions (order_id) ✅
+- Orders (1) -> (N) Payments ✅
+- Orders (1) -> (N) Reports (reported_order_id) ✅
+- Orders (1) -> (N) Rating ✅
+
+[ TÂM ĐIỂM: CÁC BẢNG KHÁC ]
+- Categories (1) -> (N) Categories (Tự tham chiếu qua parent_id) ✅
+- Wallet (1) -> (N) Wallet_Transactions (wallet_id) ✅
+- Address (1) -> (N) Orders (shipping_address_id) ✅
+- Vouchers (1) -> (N) Orders (voucher_id) ✅
+- Conversations (1) -> (N) Messages (conversation_id) ✅
+
+* Ghi chú cho JPA: 
+Cột Reports.evidence_images đang dùng JSON/TEXT,
+có thể dùng @Converter (AttributeConverter) để map thẳng ra List<String> trong Entity mà không cần làm bảng phụ.
+
+=========================================================================================================
+BẢNG MAPPING KIỂU DỮ LIỆU: POSTGRESQL -> JAVA (SPRING DATA JPA CHO UNIPASS)
+=========================================================================================================
+
+POSTGRESQL TYPE       JAVA TYPE            IMPORT                         GHI CHÚ CHO JPA
+---------------------------------------------------------------------------------------------------------
+BIGSERIAL / BIGINT    Long                 java.lang.Long                 @Id, @GeneratedValue(strategy = GenerationType.IDENTITY)
+
+INT                   Integer              java.lang.Integer
+
+VARCHAR / CHAR        String               java.lang.String               
+
+TEXT                  String               java.lang.String               Thêm annotation: @Column(columnDefinition = "TEXT")
+
+BOOLEAN               Boolean              java.lang.Boolean              Dùng class Boolean (hỗ trợ null), không dùng kiểu nguyên thủy boolean
+
+NUMERIC(p,s)          BigDecimal           java.math.BigDecimal           Tuyệt đối KHÔNG dùng Double/Float. Thêm: @Column(precision = 15, scale = 2)
+
+TIMESTAMPTZ           Instant              java.time.Instant              Chuẩn UTC. Dùng kèm @CreationTimestamp hoặc @UpdateTimestamp
+
+DATE                  LocalDate            java.time.LocalDate            Chỉ lưu Ngày-Tháng-Năm
+
+ENUM                  Enum (Tự tạo)        (Không có)                     Bắt buộc thêm: @Enumerated(EnumType.STRING) để lưu dạng chữ
+
+JSON                  String / List / Map  java.lang.String               Nếu map ra List/Map, bắt buộc dùng @Convert(converter = MyJsonConverter.class)
+=========================================================================================================
+
+Đây là link folder chứa toàn bộ các Entity Java của dự án UniPass (hệ thống C2C cho sinh viên): [DÁN LINK DRIVE CỦA BẠN VÀO ĐÂY]
+
+Bạn hãy đóng vai một Senior Backend Engineer, thực hiện Auditing chi tiết bộ Entity này dựa trên các tiêu chuẩn sau:
+
+1. Mối quan hệ (Relationships): Kiểm tra tính đối xứng của quan hệ hai chiều. 'mappedBy' đã khớp với tên biến ở đầu @ManyToOne chưa? Có bị thiếu đầu @OneToMany nào cần thiết để truy vấn ngược không?
+2. Khởi tạo Collection: Kiểm tra tất cả các Set hoặc List đã được khởi tạo bằng 'new HashSet<>()' hoặc 'new ArrayList<>()' chưa để tránh NullPointerException khi add element.
+3. Java Patterns & JPA: 
+   - Đã có đầy đủ @NoArgsConstructor (bắt buộc cho JPA) chưa?
+   - Đã cài đặt hashCode() và equals() chuẩn chưa (ưu tiên dùng ID, tránh dùng @Data của Lombok gây đệ quy vô tận)?
+4. Performance & Logic: 
+   - Check FetchType. Các quan hệ @ManyToOne đã để LAZY chưa?
+   - Check CascadeType cho các quan hệ cha-con (như Order-OrderDetail).
+   - Soi lỗi chính tả (typo) trong tên biến và @Column, @JoinColumn.
+
+Hãy liệt kê chi tiết các lỗi sai theo từng File và hướng dẫn cách sửa cụ thể cho tôi.
+
